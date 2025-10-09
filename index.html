@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BG Tracker</title>
+<style>
+/* Page */
+body { margin:0; font-family:Inter,system-ui,Arial; background:#88918d; color:#fff; padding:18px }
+.heading { font-size:28px; font-weight:800; margin:20px 0 12px; color:#000 }
+.headingTitle { font-size:36px; font-weight:900; margin:20px 0 12px; color:#fff }
+
+/* Sections */
+.input-section { margin-bottom:36px }
+.chart-section { background:#0f0f10; padding:18px; margin-bottom:28px; border-radius:8px }
+.stats-section { margin-bottom:28px }
+
+/* Grids */
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:10px }
+.chip, .select-btn { padding:14px 20px; background:#222; cursor:pointer; text-align:center; font-size:16px; color:#fff; border:none }
+.chip.active, .select-btn.active { background:#fff; color:#000; }
+.save-wrap{ display:flex; align-items:center; gap:12px; margin-top:12px }
+.save-btn{ margin-top:12px; width:100%; padding:16px 22px; border-radius:10px; background:linear-gradient(135deg,#00ff99,#00cccc); color:#000; border:0; font-weight:900; font-size:16px; cursor:pointer }
+.button-muted{ padding:10px 14px; border-radius:8px; background:#222; color:#fff; border:0 }
+
+/* Cards */
+.cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:16px }
+.comp-card { padding:14px; border-radius:10px; color:#fff; cursor:pointer }
+.comp-card .card-title { font-size:18px; font-weight:900; margin-bottom:8px }
+.comp-card .big { font-size:18px; font-weight:800 }
+.comp-card .small { font-size:13px; color:rgba(255,255,255,0.85) }
+
+/* Subtle tones */
+.comp-demons { background:#2b0d2b }
+.comp-dragons { background:#3c0f0f }
+.comp-mechs { background:#6b5a16 }
+.comp-murlocs { background:#0e4a2f }
+.comp-quilboar { background:#5a361a }
+.comp-pirates { background:#2f3234 }
+.comp-beasts { background:#0c3a1f }
+.comp-elementals { background:#0b435a }
+.comp-undead { background:#060606 }
+.comp-naga { background:#071d3a }
+.comp-menagerie { background:#3c2f46 }
+
+/* Small helpers */
+.small { font-size:14px; color:#cccccc }
+.big { font-weight:700; font-size:24px }
+.card-title { font-size:22px; font-weight:700; margin-bottom:8px }
+canvas { width:100%; display:block }
+
+/* check, modal, toast */
+.checkmark{width:40px;height:40px;border-radius:8px;background:#0a0a0a;display:inline-flex;align-items:center;justify-content:center;opacity:0;transform:scale(0.6);transition:all .36s}
+.checkmark.show{opacity:1;transform:scale(1)}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;padding:12px}
+.modal{background:#0b0b0b;padding:12px;border-radius:10px;max-width:720px;width:100%;max-height:80vh;overflow:auto}
+.match-row{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px;border-bottom:1px solid rgba(255,255,255,0.03)}
+.del-btn{background:#3a2b2b;border:0;color:#fff;padding:6px 10px;border-radius:6px;cursor:pointer}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#111;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04)}
+</style>
+</head>
+<body>
+
+<div class="headingTitle">BG TRACKER (beta)</div>
+<div class="heading">Match Entry</div>
+<div class="input-section" id="input-card">
+  <div class="small">Composition</div>
+  <div class="grid" id="composition-chips"></div>
+  <div class="small" style="margin-top:10px">Place</div>
+  <div class="grid" id="places"></div>
+  <div class="small" style="margin-top:10px">Playstyle</div>
+  <div class="grid" id="playstyles"></div>
+  <div class="small" style="margin-top:10px">Tier 3 Turn</div>
+  <div class="grid" id="tier-buttons"></div>
+  <div class="save-wrap"><button class="save-btn" id="save-match">Save Match</button><div id="save-check" class="checkmark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2fe0a8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 4L20 6"/></svg></div></div>
+</div>
+
+<div class="heading">Average Placement per Composition</div>
+<div class="chart-section"><canvas id="avg-place-chart"></canvas></div>
+
+<div class="heading">Average Placement by Playstyle</div>
+<div class="chart-section"><canvas id="playstyle-chart"></canvas></div>
+
+<div class="heading">Average Placement by Tier 3 Turn</div>
+<div class="chart-section"><canvas id="tier-chart"></canvas></div>
+
+<div class="heading">Composition Stats</div>
+<div class="stats-section"><div class="cards" id="cards"></div></div>
+
+<div style="display:flex;gap:10px;margin-top:8px">
+  <button id="export-data" class="button-muted">Export Data</button>
+  <button id="import-data" class="button-muted">Import Data</button>
+  <button id="clear-data" class="button-muted">Clear Data</button>
+  <button id="show-all" class="button-muted">Show All Matches</button>
+</div>
+
+<div id="modal-bg" class="modal-bg" style="display:none"></div>
+
+<script>
+const COMPS=['Demons','Dragons','Mechs','Murlocs','Quilboar','Pirates','Beasts','Elementals','Undead','Naga','Menagerie'];
+const PLAYS=['Tempo','Balanced','Greed'];
+const TIER3=[3,4,5,6,'—'];
+let state={comp:COMPS[0],place:1,play:PLAYS[0],tier:'—',matches:[]};
+let db;
+
+function openDb(){return new Promise(r=>{const req=indexedDB.open('bg-db',1);req.onupgradeneeded=e=>{const d=e.target.result;if(!d.objectStoreNames.contains('matches'))d.createObjectStore('matches',{keyPath:'id'});};req.onsuccess=e=>{db=e.target.result;r()};});}
+function addMatch(m){return new Promise(r=>{const tx=db.transaction('matches','readwrite');tx.objectStore('matches').put(m);tx.oncomplete=()=>r();});}
+function deleteMatch(id){return new Promise((res,rej)=>{const tx=db.transaction('matches','readwrite');tx.objectStore('matches').delete(id);tx.oncomplete=()=>res();tx.onerror=(e)=>rej(e);});}
+function getAll(){return new Promise(r=>{const tx=db.transaction('matches','readonly');tx.objectStore('matches').getAll().onsuccess=e=>r(e.target.result||[]);});}
+function clearAll(){return new Promise(r=>{const tx=db.transaction('matches','readwrite');tx.objectStore('matches').clear();tx.oncomplete=()=>r();});}
+function uid(){return Date.now().toString()+'_'+Math.random().toString(36).slice(2,6)}
+
+function buildUI(){
+  const compEl=document.getElementById('composition-chips');compEl.innerHTML='';COMPS.forEach(c=>{const d=document.createElement('div');d.className='chip';d.textContent=c;d.onclick=()=>{state.comp=c;render()};compEl.appendChild(d)});
+  const pEl=document.getElementById('places');pEl.innerHTML='';for(let i=1;i<=8;i++){const b=document.createElement('button');b.className='select-btn';b.textContent=i;b.onclick=()=>{state.place=i;render()};pEl.appendChild(b)}
+  const playEl=document.getElementById('playstyles');playEl.innerHTML='';PLAYS.forEach(p=>{const d=document.createElement('div');d.className='chip';d.textContent=p;d.onclick=()=>{state.play=p;render()};playEl.appendChild(d)})
+  const tierEl=document.getElementById('tier-buttons');tierEl.innerHTML='';TIER3.forEach(t=>{const b=document.createElement('button');b.className='select-btn';b.textContent=t;b.onclick=()=>{state.tier=t;render()};tierEl.appendChild(b)})
+}
+
+function render(){document.querySelectorAll('#composition-chips .chip').forEach(el=>el.classList.toggle('active',el.textContent===state.comp));document.querySelectorAll('#playstyles .chip').forEach(el=>el.classList.toggle('active',el.textContent===state.play));document.querySelectorAll('#places .select-btn').forEach((b,i)=>b.classList.toggle('active',i+1===state.place));document.querySelectorAll('#tier-buttons .select-btn').forEach(b=>b.classList.toggle('active',b.textContent==state.tier))}
+
+function showCheck(){const el=document.getElementById('save-check');if(!el) return;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1200)}
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),1600)}
+
+// save
+document.getElementById('save-match').onclick=async()=>{const m={id:uid(),composition:state.comp,place:state.place,play:state.play,tier:state.tier,created:Date.now()};await addMatch(m);await refresh();showCheck();toast('Match saved')}
+
+// clear
+document.getElementById('clear-data').onclick=async()=>{await clearAll();await refresh();toast('All data cleared')}
+
+async function refresh(){state.matches=await getAll();renderCards();drawCharts()}
+function computeAvg(arr){return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null}
+function mostCommon(arr){if(!arr.length) return '-';const f={};arr.forEach(a=>f[a]=(f[a]||0)+1);return Object.keys(f).reduce((a,b)=>f[a]>=f[b]?a:b)}
+
+function renderCards(){const cards=document.getElementById('cards');cards.innerHTML='';COMPS.forEach(c=>{const ms=state.matches.filter(m=>m.composition===c);const avg=computeAvg(ms.map(m=>m.place));const commonPlay=mostCommon(ms.map(m=>m.play));const avgTier=computeAvg(ms.map(m=>m.tier==='—'?0:m.tier));const div=document.createElement('div');div.className='comp-card comp-'+c.toLowerCase();div.innerHTML=`<div class="card-title">${c}</div><div class="big">Avg: ${ms.length?avg.toFixed(2):'-'}</div><div class="small">Matches: ${ms.length}</div><div class="small">Most common playstyle: ${commonPlay}</div><div class="small">Avg Tier 3 Turn: ${ms.length?avgTier.toFixed(1):'-'}</div>`;div.onclick=()=>openDetails(c);cards.appendChild(div)})}
+
+// modal functions
+const modalBg=document.getElementById('modal-bg');
+async function openDetails(comp){modalBg.innerHTML='';const box=document.createElement('div');box.className='modal';box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-weight:900">${comp} — matches</div><button id="modal-close" class="button-muted">Close</button></div><div id="modal-body"></div>`;modalBg.appendChild(box);document.getElementById('modal-close').onclick=()=>modalBg.style.display='none';modalBg.onclick=(e)=>{if(e.target===modalBg)modalBg.style.display='none'};const body=document.getElementById('modal-body');const matches=(await getAll()).filter(m=>m.composition===comp).sort((a,b)=>b.created-a.created);if(matches.length===0){body.innerHTML='<div class="small">No matches recorded for this composition.</div>'}else{matches.forEach(m=>{const row=document.createElement('div');row.className='match-row';const left=document.createElement('div');left.innerHTML=`<div style="font-weight:800">Place ${m.place}</div><div class="small">${m.play} • Tier ${m.tier==='—'?'—':m.tier}</div><div class="small">${new Date(m.created).toLocaleString()}</div>`;const del=document.createElement('button');del.className='del-btn';del.textContent='Delete';del.onclick=async(e)=>{e.stopPropagation();await deleteMatch(m.id);await refresh();openDetails(comp);toast('Deleted')};row.appendChild(left);row.appendChild(del);body.appendChild(row)})}modalBg.style.display='flex'}
+
+// show all matches modal and allow delete
+async function openAllMatches(){modalBg.innerHTML='';const box=document.createElement('div');box.className='modal';box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-weight:900">All Matches</div><button id="modal-close-all" class="button-muted">Close</button></div><div id="modal-body-all"></div>`;modalBg.appendChild(box);document.getElementById('modal-close-all').onclick=()=>modalBg.style.display='none';modalBg.onclick=(e)=>{if(e.target===modalBg)modalBg.style.display='none'};const body=document.getElementById('modal-body-all');const matches=(await getAll()).sort((a,b)=>b.created-a.created);if(matches.length===0){body.innerHTML='<div class="small">No matches recorded.</div>'}else{matches.forEach(m=>{const row=document.createElement('div');row.className='match-row';const left=document.createElement('div');left.innerHTML=`<div style="font-weight:800">${m.composition} • Place ${m.place}</div><div class="small">${m.play} • Tier ${m.tier==='—'?'—':m.tier}</div><div class="small">${new Date(m.created).toLocaleString()}</div>`;const del=document.createElement('button');del.className='del-btn';del.textContent='Delete';del.onclick=async(e)=>{e.stopPropagation();await deleteMatch(m.id);await refresh();openAllMatches();toast('Deleted')};row.appendChild(left);row.appendChild(del);body.appendChild(row)})}modalBg.style.display='flex'}
+
+document.getElementById('show-all').onclick = ()=> openAllMatches();
+
+function drawCharts(){function drawBarChart(ctx,items,color){const dpr=window.devicePixelRatio||1;const width=ctx.canvas.clientWidth;ctx.canvas.width=width*dpr;ctx.canvas.height=items.length*44*dpr;ctx.scale(dpr,dpr);ctx.clearRect(0,0,ctx.canvas.width/dpr,ctx.canvas.height/dpr);ctx.font='14px sans-serif';items.forEach((it,i)=>{const y=i*44+6;const ratio=(it.matches&&it.value!==null)?((8-it.value)/7):0;const w=ratio*width;ctx.fillStyle=color;ctx.fillRect(0,y,w,32);ctx.fillStyle='#777';const label=`${it.name} (${it.matches?it.value.toFixed(2):'-'})`;ctx.fillText(label,8,y+20);ctx.shadowBlur=0});ctx.setTransform(1,0,0,1,0,0)}
+let compVals=COMPS.map(c=>{const ms=state.matches.filter(m=>m.composition===c);const avg=computeAvg(ms.map(m=>m.place));return{name:c,value:avg,matches:ms.length}});compVals.sort((a,b)=>{if(a.value===null&&b.value===null)return 0;if(a.value===null)return 1;if(b.value===null)return -1;return a.value-b.value});drawBarChart(document.getElementById('avg-place-chart').getContext('2d'),compVals,'#fff');let playVals=PLAYS.map(p=>{const ms=state.matches.filter(m=>m.play===p);const avg=computeAvg(ms.map(m=>m.place));return{name:p,value:avg,matches:ms.length}});playVals.sort((a,b)=>{if(a.value===null)return 1;if(b.value===null)return -1;return a.value-b.value});drawBarChart(document.getElementById('playstyle-chart').getContext('2d'),playVals,'#fff');let tierList=TIER3.filter(x=>'—'!==x);let tierVals=tierList.map(t=>{const ms=state.matches.filter(m=>m.tier==t);const avg=computeAvg(ms.map(m=>m.place));return{name:String(t),value:avg,matches:ms.length}});tierVals.sort((a,b)=>{if(a.value===null)return 1;if(b.value===null)return -1;return a.value-b.value});drawBarChart(document.getElementById('tier-chart').getContext('2d'),tierVals,'#fff')}
+
+(async()=>{await openDb();buildUI();render();await refresh()})();
+
+// export/import
+const exportBtn=document.getElementById('export-data');exportBtn.onclick=async()=>{const data=await getAll();const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='bg-matches-'+(new Date()).toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)};
+const importBtn=document.getElementById('import-data');importBtn.onclick=()=>{const input=document.createElement('input');input.type='file';input.accept='application/json';input.onchange=async()=>{const file=input.files[0];if(!file)return;const text=await file.text();try{const arr=JSON.parse(text);const tx=db.transaction('matches','readwrite');const store=tx.objectStore('matches');arr.forEach(m=>{if(!m.id)m.id=uid();store.put(m)});tx.oncomplete=()=>refresh()}catch(err){alert('Import failed: '+err.message)}};input.click()};
+
+</script>
+</body>
+</html>
