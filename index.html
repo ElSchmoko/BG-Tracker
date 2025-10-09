@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#317EFB">
 <title>BG Tracker</title>
 <style>
 /* Page */
@@ -152,6 +154,13 @@ let compVals=COMPS.map(c=>{const ms=state.matches.filter(m=>m.composition===c);c
 const exportBtn=document.getElementById('export-data');exportBtn.onclick=async()=>{const data=await getAll();const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='bg-matches-'+(new Date()).toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)};
 const importBtn=document.getElementById('import-data');importBtn.onclick=()=>{const input=document.createElement('input');input.type='file';input.accept='application/json';input.onchange=async()=>{const file=input.files[0];if(!file)return;const text=await file.text();try{const arr=JSON.parse(text);const tx=db.transaction('matches','readwrite');const store=tx.objectStore('matches');arr.forEach(m=>{if(!m.id)m.id=uid();store.put(m)});tx.oncomplete=()=>refresh()}catch(err){alert('Import failed: '+err.message)}};input.click()};
 
+</script>
+  <script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js')
+    .then(() => console.log('Service Worker registered!'))
+    .catch(err => console.log('Service Worker failed:', err));
+}
 </script>
 </body>
 </html>
