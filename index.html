@@ -68,24 +68,52 @@ body { margin:0; font-family:Inter,system-ui,Arial; background:#1b1b1b; color:#f
 
 /* Cards */
 .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:16px }
-.comp-card { padding:14px; border-radius:10px; color:#fff; cursor:pointer; transition: transform .18s ease, box-shadow .18s ease; box-shadow: 0 6px 18px rgba(0,0,0,0.45); overflow:hidden; position:relative; }
+/* Base flat accent style */
+.comp-card {
+  background: #202225;
+  border-left: 6px solid transparent;
+  border-radius: 10px;
+  padding: 14px;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+  transition: all 0.25s ease;
+position: relative;        /* add this so ::before works */
+  overflow: hidden;          /* keeps glow tidy inside corners */
+}
+
+.comp-card:hover {
+ background: #26282b;
+  transform: translateY(-3px);
+}
+
+comp-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  border-radius: 10px 0 0 10px;
+  box-shadow: 0 0 8px currentColor;
+  opacity: 0.4;
+}
+
 .comp-card .card-title { font-size:18px; font-weight:900; margin-bottom:8px }
 .comp-card .big { font-size:18px; font-weight:800 }
 .comp-card .small { font-size:13px; color:rgba(255,255,255,0.85) }
 
-/* B) Modern, brighter color coding for composition cards (keeps original class names) */
-/* Added gradients, subtle glass/overlay and glow on hover to be modern but moderate. */
-.comp-demons { background: linear-gradient(135deg,#9b4dff 0%,#6a00ff 100%); box-shadow: 0 8px 30px rgba(106,0,255,0.18); }
-.comp-dragons { background: linear-gradient(135deg,#ff6b6b 0%,#d93838 100%); box-shadow: 0 8px 30px rgba(217,56,56,0.16); }
-.comp-mechs { background: linear-gradient(135deg,#f4d03f 0%,#f39c12 100%); color:#111; box-shadow: 0 8px 30px rgba(243,156,18,0.14); }
-.comp-murlocs { background: linear-gradient(135deg,#2ecc71 0%,#16a085 100%); box-shadow: 0 8px 30px rgba(22,160,133,0.14); }
-.comp-quilboar { background: linear-gradient(135deg,#d35400 0%,#e67e22 100%); box-shadow: 0 8px 30px rgba(230,126,34,0.12); }
-.comp-pirates { background: linear-gradient(135deg,#95a5a6 0%,#2f3234 100%); box-shadow: 0 8px 30px rgba(47,50,52,0.12); }
-.comp-beasts { background: linear-gradient(135deg,#27ae60 0%,#145a32 100%); box-shadow: 0 8px 30px rgba(18,97,66,0.14); }
-.comp-elementals { background: linear-gradient(135deg,#3498db 0%,#1abc9c 100%); box-shadow: 0 8px 30px rgba(26,188,156,0.14); }
-.comp-undead { background: linear-gradient(135deg,#2c3e50 0%,#060606 100%); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
-.comp-naga { background: linear-gradient(135deg,#1e90ff 0%,#004080 100%); box-shadow: 0 8px 30px rgba(0,64,128,0.14); }
-.comp-menagerie { background: linear-gradient(135deg,#8e44ad 0%,#5b2c6f 100%); box-shadow: 0 8px 30px rgba(88,41,112,0.14); }
+.comp-demons { border-left-color: #9b4dff; }
+.comp-dragons { border-left-color: #ff6b6b; }
+.comp-mechs { border-left-color: #f4d03f; }
+.comp-murlocs { border-left-color: #2ecc71; }
+.comp-quilboar { border-left-color: #d35400; }
+.comp-pirates { border-left-color: #95a5a6; }
+.comp-beasts { border-left-color: #27ae60; }
+.comp-elementals { border-left-color: #3498db; }
+.comp-undead { border-left-color: #2c3e50; }
+.comp-naga { border-left-color: #1e90ff; }
+.comp-menagerie { border-left-color: #8e44ad; }
+
 
 /* subtle overlay stripe effect to give depth */
 .comp-card::after { content:""; position:absolute; inset:0; pointer-events:none; background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.08)); mix-blend-mode: overlay; }
@@ -422,4 +450,5 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
+
 
