@@ -10,13 +10,25 @@
 /* Page */
 body { margin:0; font-family:Inter,system-ui,Arial; background:#1b1b1b; color:#fff; padding:18px }
 .heading { font-size:28px; font-weight:800; margin:20px 0 12px; color:#fff }
-.headingTitle { font-size:16px; font-weight:900; margin:0px 0 4px; background: linear-gradient(180deg, #fff8dc 0%, #f0c14b 45%, #b8860b 100%);
+.headingTitle { font-size:16px; font-weight:700;gap:10px; margin:-12px 0 -20px; color:#000;
+ text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: #f0c14b; /* fallback */
-  text-shadow:
-    0 1px 1px rgba(255, 255, 255, 0.4), /* subtle top highlight */
-    0 2px 2px rgba(0, 0, 0, 0.25);       /* faint depth shadow */ text-align:right }
+     -moz-background-clip: text;
+          background-clip: text;
+position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: rgba(27, 27, 27, 0.9); /* matches page background */
+  backdrop-filter: blur(2px);            /* soft blur for modern look */
+  padding: 2px 0;
+  text-align: center;
+   text-align:right }
+
+.title-icon {
+  width: 12px;   /* adjust to taste */
+  height: 12px;
+  object-fit: contain;
+}
 
 /* Sections */
 .input-section { margin-bottom:18px } /* slightly reduced to fit new summary spacing */
@@ -169,7 +181,7 @@ margin-top: 12px;
 </head>
 <body>
 
-<div class="headingTitle">BG TRACKER</div>
+<div class="headingTitle"><img src="icons/icon-192.png" class="title-icon">BG TRACKER</div>
 <div class="heading">Match Entry</div>
 <div class="input-section" id="input-card">
   <div class="small">Composition</div>
@@ -189,8 +201,8 @@ margin-top: 12px;
 
 <!-- A) New small summary section inserted here -->
 <div id="summary" class="summary-panel" aria-live="polite">
-  <div class="stat">Total matches: <span id="totalMatches" class="value">0</span></div>
-  <div class="stat" style='box-align:right'>Average placement: <span id="avgPlacementOverall" class="value">-</span></div>
+  <div class="stat">Total matches overall: <span id="totalMatches" class="value">0</span></div>
+  <div class="stat">Average placement overall: <span id="avgPlacementOverall" class="value">-</span></div>
 </div>
 
 <div class="heading">Average Placement per Composition</div>
@@ -450,5 +462,3 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
-
-
