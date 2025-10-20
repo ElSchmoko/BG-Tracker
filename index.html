@@ -269,61 +269,170 @@ document.getElementById('save-match').onclick = async () => {
 
 function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),1600)}
 
-/* -------------------------------
-   Local Backup System (auto-save)
---------------------------------*/
+/* ------------------------------------------
+   PERSISTENT Local Backup System + Fallback
+------------------------------------------ */
 let backupFileHandle = null;
+let backupSupported = 'showSaveFilePicker' in window;
 
-// Ask user permission once
-async function initBackupFile() {
-  if (localStorage.getItem('bg-backup-file')) {
-    try {
-      backupFileHandle = await window.showOpenFilePicker({
-        types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] } }],
-        multiple: false
-      }).then(files => files[0]);
-    } catch (e) {
-      console.warn('Backup file access canceled or failed:', e);
-    }
-  } else {
-    const newHandle = await window.showSaveFilePicker({
+// ✅ Check browser support and warn if not available
+if (!backupSupported) {
+  console.warn('File System Access API not supported — using fallback backup system.');
+}
+
+// --- Helper: small IndexedDB just to store file handle ---
+async function openHandleDb() {
+  return new Promise((resolve) => {
+    const req = indexedDB.open('bg-backup-handle-db', 1);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('handles')) db.createObjectStore('handles');
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+  });
+}
+
+async function saveBackupHandle(handle) {
+  try {
+    const db = await openHandleDb();
+    const tx = db.transaction('handles', 'readwrite');
+    tx.objectStore('handles').put(handle, 'backup');
+  } catch (err) {
+    console.warn('Could not store handle:', err);
+  }
+}
+
+async function getSavedBackupHandle() {
+  try {
+    const db = await openHandleDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('handles', 'readonly');
+      const req = tx.objectStore('handles').get('backup');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = reject;
+    });
+  } catch (err) {
+    console.warn('Handle retrieval failed:', err);
+    return null;
+  }
+}
+
+// --- Let user choose backup file manually (first time only) ---
+async function chooseBackupFile() {
+  if (!backupSupported) {
+    toast('Your browser does not support automatic local backups. Use Export Data instead.');
+    return;
+  }
+
+  try {
+    backupFileHandle = await window.showSaveFilePicker({
       suggestedName: 'bg-tracker-backup.json',
       types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] } }]
     });
-    backupFileHandle = newHandle;
-    localStorage.setItem('bg-backup-file', 'granted');
-    toast('Backup file created successfully');
-  }
-}
-
-// Write backup file
-async function backupData() {
-  if (!backupFileHandle) return; // skip if not available
-  try {
-    const writable = await backupFileHandle.createWritable();
-    const allMatches = await getAll();
-    await writable.write(JSON.stringify(allMatches, null, 2));
-    await writable.close();
-    console.log('Backup updated');
+    await saveBackupHandle(backupFileHandle);
+    toast('Backup file selected and stored');
   } catch (e) {
-    console.warn('Backup failed:', e);
+    console.warn('User canceled file selection:', e);
   }
 }
 
-// Initialize backup on first run
-(async () => {
-  if ('showSaveFilePicker' in window) {
-    await initBackupFile();
-  } else {
-    console.warn('File System Access API not supported in this browser.');
+// --- Restore stored handle if available ---
+async function restoreBackupHandle() {
+  if (!backupSupported) return;
+  const savedHandle = await getSavedBackupHandle();
+  if (!savedHandle) return;
+  try {
+    const perm = await savedHandle.queryPermission({ mode: 'readwrite' });
+    if (perm === 'granted' || (await savedHandle.requestPermission({ mode: 'readwrite' })) === 'granted') {
+      backupFileHandle = savedHandle;
+      console.log('Backup handle restored.');
+    }
+  } catch (err) {
+    console.warn('Restore failed:', err);
   }
+}
+
+// --- Perform the actual backup ---
+async function backupData() {
+  const allMatches = await getAll();
+
+  // Case 1: supported browser with stored handle
+  if (backupFileHandle) {
+    try {
+      const writable = await backupFileHandle.createWritable();
+      await writable.write(JSON.stringify(allMatches, null, 2));
+      await writable.close();
+      console.log('Backup file updated successfully');
+      return true;
+    } catch (e) {
+      console.error('Backup failed:', e);
+      return false;
+    }
+  }
+
+  // Case 2: Fallback for unsupported browsers (auto-download JSON)
+  if (!backupSupported) {
+    try {
+      const blob = new Blob([JSON.stringify(allMatches, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'bg-tracker-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      console.log('Backup exported (fallback)');
+      return true;
+    } catch (e) {
+      console.warn('Fallback backup failed:', e);
+    }
+  }
+
+  return false;
+}
+
+// --- Add a manual setup button ---
+const backupBtn = document.createElement('button');
+backupBtn.textContent = 'Setup Backup File';
+backupBtn.className = 'button-muted';
+backupBtn.onclick = chooseBackupFile;
+document.querySelector('div[style*="display:flex"]').appendChild(backupBtn);
+
+// --- Try restoring previous handle automatically ---
+(async () => {
+  await restoreBackupHandle();
 })();
 
- 
-// save
-document.getElementById('save-match').onclick=async()=>{const m={id:uid(),composition:state.comp,place:state.place,play:state.play,tier:state.tier,created:Date.now()};await addMatch(m);await refresh();showCheck();toast('Match saved')}
+/* ------------------------------------------
+   Save Match Handler (auto backup integrated)
+------------------------------------------ */
+document.getElementById('save-match').onclick = async () => {
+  const m = {
+    id: uid(),
+    composition: state.comp,
+    place: state.place,
+    play: state.play,
+    tier: state.tier,
+    created: Date.now()
+  };
 
-// clear
+  await addMatch(m);
+  await refresh();
+
+  const backedUp = await backupData();
+  if (backedUp) {
+    toast('Match saved and backed up');
+  } else {
+    toast('Match saved (backup unavailable)');
+  }
+
+  showCheck();
+};
+
+/* ------------------------------------------
+   Confirm Before Clearing All Data
+------------------------------------------ */
 document.getElementById('clear-data').onclick = async () => {
   if (!confirm('Are you sure you want to delete all match data? This cannot be undone.')) return;
   await clearAll();
