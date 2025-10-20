@@ -615,8 +615,7 @@ document.getElementById('sort-cards').onchange = (e) => {
 /* initialize */
 (async()=>{await openDb();buildUI();render();await refresh()})();
 
-// export/import
-const exportBtn=document.getElementById('export-data');exportBtn.onclick=async()=>{const data=await getAll();const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='bg-matches-'+(new Date()).toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)};
+// import
 const importBtn=document.getElementById('import-data');importBtn.onclick=()=>{const input=document.createElement('input');input.type='file';input.accept='application/json';input.onchange=async()=>{const file=input.files[0];if(!file)return;const text=await file.text();try{const arr=JSON.parse(text);const tx=db.transaction('matches','readwrite');const store=tx.objectStore('matches');arr.forEach(m=>{if(!m.id)m.id=uid();store.put(m)});tx.oncomplete=()=>refresh()}catch(err){alert('Import failed: '+err.message)}};input.click()};
 
 </script>
