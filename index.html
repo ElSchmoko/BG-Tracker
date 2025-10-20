@@ -38,37 +38,53 @@ position: sticky;
 .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:10px }
 .chip, .select-btn { padding:14px 14px; background:#222; cursor:pointer; text-align:center; font-size:16px; color:#fff; border:white}
 .chip.active, .select-btn.active { background:#fff; color:#000; }
-.save-wrap{ display:flex; align-items:center; gap:12px; margin-top:12px;}
-.save-btn {
-  width: 100%;                  /* full width */
-  padding: 16px 22px;           /* keep it touch-friendly */
-  display: flex;                 /* allow checkmark inside */
+.save-wrap {
+  display: flex;
   align-items: center;
-  justify-content: center;       /* center text and check */
-  gap: 8px;                      /* space between text and check */
-  background: linear-gradient(135deg,#00ff99,#00cccc);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.save-btn {
+  position: relative;               /* needed for absolute checkmark */
+  width: 100%;                      /* full width */
+  padding: 16px 22px;               /* touch-friendly padding */
+  display: flex;
+  align-items: center;
+  justify-content: center;           /* center text perfectly */
+  background: linear-gradient(135deg, #00ff99, #00cccc);
   color: #000;
-  border: 0;
   font-weight: 900;
   font-size: 16px;
-  cursor: pointer;
+  border: 0;
   border-radius: 8px;
-  position: relative;
+  cursor: pointer;
+  overflow: hidden;                  /* ensures checkmark stays inside button */
 }
 
+/* Button text */
+.save-btn span {
+  pointer-events: none;              /* optional: prevent text interference */
+}
+
+/* Checkmark */
 .save-btn .checkmark {
-  display: inline-flex;          /* inline flex for alignment */
+  position: absolute;                /* removed from flex flow */
+  right: 16px;                       /* adjust distance from right edge */
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  opacity: 0;                    /* hide by default */
+  opacity: 0;
   transform: scale(0.6);
-  transition: all 0.36s;
+  transition: opacity 0.36s, transform 0.36s;
 }
 
+/* Show the checkmark */
 .save-btn .checkmark.show {
   opacity: 1;
   transform: scale(1);
 }
+
 
 .button-muted{ padding:10px 14px; border-radius:8px; background:#222; color:#fff; border:0 }
 
