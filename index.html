@@ -186,11 +186,18 @@ margin-top: 12px;
   box-shadow: 0 0 0 2px rgba(0, 255, 153, 0.2);
 }
 
- #matchesDonutChart, #placementLineChart {
+#matchesDonutChart {
   width: 100%;
   height: 300px;
   max-height: 400px;
 }
+
+#placementLineChart {
+  width: 100%;
+  height: 200px;
+  max-height: 260px;
+}
+
 
 
 </style>
@@ -668,48 +675,68 @@ function drawPlacementLineChart() {
   const days = rangeSel.value;
   const cutoff = days === 'all' ? 0 : Date.now() - days * 86400000;
 
+  // Filter + sort matches
   const matches = state.matches
     .filter(m => m.created >= cutoff)
     .sort((a, b) => a.created - b.created);
+
+  // Group by day (aggregate average placement)
+  const dayMap = {};
+  matches.forEach(m => {
+    const dateKey = new Date(m.created).toISOString().slice(0, 10); // yyyy-mm-dd
+    if (!dayMap[dateKey]) dayMap[dateKey] = [];
+    dayMap[dateKey].push(m.place);
+  });
+
+  const labels = Object.keys(dayMap).sort();
+  const avgValues = labels.map(d =>
+    dayMap[d].reduce((a, b) => a + b, 0) / dayMap[d].length
+  );
 
   if (lineChartInstance) lineChartInstance.destroy();
 
   lineChartInstance = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: matches.map(m => new Date(m.created).toLocaleDateString()),
+      labels,
       datasets: [{
-        label: 'Placement',
-        data: matches.map(m => m.place),
+        data: avgValues,
         borderColor: '#00ff99',
-        backgroundColor: 'rgba(0,255,153,0.2)',
-        fill: true,
-        tension: 0.3,
-        pointRadius: 3,
-        pointBackgroundColor: '#00ff99'
+        backgroundColor: 'rgba(0, 255, 153, 0.1)',
+        fill: 'start', // fill below the line
+        tension: 0.35,
+        pointRadius: 0,
+        borderWidth: 2
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
+        x: {
+          display: false // hide horizontal axis labels
+        },
         y: {
           reverse: true,
+          display: false, // hide vertical labels and title
           beginAtZero: false,
-          ticks: { color: '#fff', stepSize: 1 },
-          title: { display: true, text: 'Placement (1 = Best)', color: '#fff' }
-        },
-        x: {
-          ticks: { color: '#fff' }
+          min: 1,
+          max: 8
         }
       },
       plugins: {
-        legend: { labels: { color: '#fff' } },
+        legend: { display: false }, // hide legend
         tooltip: {
           callbacks: {
-            label: ctx => `Place ${ctx.parsed.y}`
-          }
+            label: ctx => `Avg Place: ${ctx.parsed.y.toFixed(2)}`
+          },
+          backgroundColor: 'rgba(0,0,0,0.8)',
+          titleColor: '#00ff99',
+          bodyColor: '#fff'
         }
+      },
+      elements: {
+        line: { borderJoinStyle: 'round' }
       }
     }
   });
