@@ -686,9 +686,9 @@ function drawPlacementLineChart() {
     matches = matches.slice(-limit);
   }
 
-  // Default baseline if no matches
+  // ✅ Default baseline at bottom (place 8)
   if (matches.length === 0) {
-    matches = [{ place: 8 }]; // start from bottom
+    matches = [{ place: 8 }];
   }
 
   if (lineChartInstance) lineChartInstance.destroy();
@@ -701,13 +701,14 @@ function drawPlacementLineChart() {
     data: {
       labels,
       datasets: [{
-        label: 'Placement',
         data: placements,
         borderColor: '#00ff99',
-        backgroundColor: 'rgba(0, 255, 153, 0.12)',
+        backgroundColor: 'rgba(0,255,153,0.1)',
         fill: 'start',
-        tension: 0.35,
-        pointRadius: 0,
+        tension: 0,              // 🔹 straight lines (no smoothing)
+        pointRadius: 3,          // 🔹 small dots
+        pointBackgroundColor: '#00ff99',
+        pointHoverRadius: 4,
         borderWidth: 2
       }]
     },
@@ -720,10 +721,10 @@ function drawPlacementLineChart() {
       },
       scales: {
         x: {
-          display: false // hide horizontal axis
+          display: false // hide horizontal axis labels
         },
         y: {
-          reverse: true,
+          reverse: true,        // 🔹 smaller = higher rank
           display: true,
           min: 1,
           max: 8,
@@ -736,13 +737,7 @@ function drawPlacementLineChart() {
             color: 'rgba(255,255,255,0.08)',
             lineWidth: 1
           },
-          title: {
-            display: true,
-            text: 'Placement',
-            color: 'rgba(255,255,255,0.5)',
-            font: { size: 12, weight: '600' },
-            padding: { bottom: 8 }
-          }
+          title: { display: false } // 🔹 removed "Placement" text
         }
       },
       plugins: {
@@ -762,6 +757,7 @@ function drawPlacementLineChart() {
     }
   });
 }
+
 
 
 function drawCharts(){
