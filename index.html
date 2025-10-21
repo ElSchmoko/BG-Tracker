@@ -194,9 +194,14 @@ margin-top: 12px;
 
 #placementLineChart {
   width: 100%;
-  height: 160px;
-  max-height: 220px;
+  height: 180px;
+  max-height: 240px;
 }
+
+#timeRange {
+  margin-bottom: 8px;
+}
+
 
 
 
@@ -241,13 +246,14 @@ margin-top: 12px;
 <!-- NEW GRAPH 2: Line Chart -->
 <div class="heading">Placement Over Time</div>
 <div class="chart-section">
-  <select id="timeRange" class="custom-select">
+<select id="timeRange" class="custom-select" style="margin-bottom: 8px;">
   <option value="10">Last 10 Matches</option>
   <option value="50">Last 50 Matches</option>
   <option value="100">Last 100 Matches</option>
   <option value="all">All Matches</option>
 </select>
-  <canvas id="placementLineChart"></canvas>
+<canvas id="placementLineChart"></canvas>
+
 </div>
 
 
@@ -677,13 +683,18 @@ function drawPlacementLineChart() {
 
   if (rangeVal !== 'all') {
     const limit = parseInt(rangeVal);
-    matches = matches.slice(-limit); // last N matches
+    matches = matches.slice(-limit);
+  }
+
+  // Default baseline if no matches
+  if (matches.length === 0) {
+    matches = [{ place: 8 }]; // start from bottom
   }
 
   if (lineChartInstance) lineChartInstance.destroy();
 
   const labels = matches.map((_, i) => `#${i + 1}`);
-  const placements = matches.map(m => m.place);
+  const placements = matches.map(m => m.place ?? 8);
 
   lineChartInstance = new Chart(ctx, {
     type: 'line',
@@ -693,9 +704,9 @@ function drawPlacementLineChart() {
         label: 'Placement',
         data: placements,
         borderColor: '#00ff99',
-        backgroundColor: 'rgba(0, 255, 153, 0.15)',
-        fill: 'start', // fill below line
-        tension: 0.3,
+        backgroundColor: 'rgba(0, 255, 153, 0.12)',
+        fill: 'start',
+        tension: 0.35,
         pointRadius: 0,
         borderWidth: 2
       }]
@@ -703,15 +714,35 @@ function drawPlacementLineChart() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: {
+        duration: 800,
+        easing: 'easeOutQuart'
+      },
       scales: {
         x: {
           display: false // hide horizontal axis
         },
         y: {
-          reverse: true, // 1 = top, 8 = bottom
-          display: false,
+          reverse: true,
+          display: true,
           min: 1,
-          max: 8
+          max: 8,
+          ticks: {
+            stepSize: 1,
+            color: 'rgba(255,255,255,0.4)',
+            font: { size: 11 }
+          },
+          grid: {
+            color: 'rgba(255,255,255,0.08)',
+            lineWidth: 1
+          },
+          title: {
+            display: true,
+            text: 'Placement',
+            color: 'rgba(255,255,255,0.5)',
+            font: { size: 12, weight: '600' },
+            padding: { bottom: 8 }
+          }
         }
       },
       plugins: {
@@ -720,7 +751,7 @@ function drawPlacementLineChart() {
           callbacks: {
             label: ctx => `Place ${ctx.parsed.y}`
           },
-          backgroundColor: 'rgba(0,0,0,0.8)',
+          backgroundColor: 'rgba(0,0,0,0.85)',
           titleColor: '#00ff99',
           bodyColor: '#fff'
         }
