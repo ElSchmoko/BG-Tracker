@@ -194,9 +194,10 @@ margin-top: 12px;
 
 #placementLineChart {
   width: 100%;
-  height: 200px;
-  max-height: 260px;
+  height: 160px;
+  max-height: 220px;
 }
+
 
 
 
@@ -241,12 +242,11 @@ margin-top: 12px;
 <div class="heading">Placement Over Time</div>
 <div class="chart-section">
   <select id="timeRange" class="custom-select">
-    <option value="7">Last Week</option>
-    <option value="30">Last Month</option>
-    <option value="365">Last Year</option>
-    <option value="1825">Last 5 Years</option>
-    <option value="all">All Time</option>
-  </select>
+  <option value="10">Last 10 Matches</option>
+  <option value="50">Last 50 Matches</option>
+  <option value="100">Last 100 Matches</option>
+  <option value="all">All Matches</option>
+</select>
   <canvas id="placementLineChart"></canvas>
 </div>
 
@@ -672,39 +672,30 @@ function drawPlacementLineChart() {
   const rangeSel = document.getElementById('timeRange');
   if (!ctx) return;
 
-  const days = rangeSel.value;
-  const cutoff = days === 'all' ? 0 : Date.now() - days * 86400000;
+  const rangeVal = rangeSel.value;
+  let matches = [...state.matches].sort((a, b) => a.created - b.created);
 
-  // Filter + sort matches
-  const matches = state.matches
-    .filter(m => m.created >= cutoff)
-    .sort((a, b) => a.created - b.created);
-
-  // Group by day (aggregate average placement)
-  const dayMap = {};
-  matches.forEach(m => {
-    const dateKey = new Date(m.created).toISOString().slice(0, 10); // yyyy-mm-dd
-    if (!dayMap[dateKey]) dayMap[dateKey] = [];
-    dayMap[dateKey].push(m.place);
-  });
-
-  const labels = Object.keys(dayMap).sort();
-  const avgValues = labels.map(d =>
-    dayMap[d].reduce((a, b) => a + b, 0) / dayMap[d].length
-  );
+  if (rangeVal !== 'all') {
+    const limit = parseInt(rangeVal);
+    matches = matches.slice(-limit); // last N matches
+  }
 
   if (lineChartInstance) lineChartInstance.destroy();
+
+  const labels = matches.map((_, i) => `#${i + 1}`);
+  const placements = matches.map(m => m.place);
 
   lineChartInstance = new Chart(ctx, {
     type: 'line',
     data: {
       labels,
       datasets: [{
-        data: avgValues,
+        label: 'Placement',
+        data: placements,
         borderColor: '#00ff99',
-        backgroundColor: 'rgba(0, 255, 153, 0.1)',
-        fill: 'start', // fill below the line
-        tension: 0.35,
+        backgroundColor: 'rgba(0, 255, 153, 0.15)',
+        fill: 'start', // fill below line
+        tension: 0.3,
         pointRadius: 0,
         borderWidth: 2
       }]
@@ -714,21 +705,20 @@ function drawPlacementLineChart() {
       maintainAspectRatio: false,
       scales: {
         x: {
-          display: false // hide horizontal axis labels
+          display: false // hide horizontal axis
         },
         y: {
-          reverse: true,
-          display: false, // hide vertical labels and title
-          beginAtZero: false,
+          reverse: true, // 1 = top, 8 = bottom
+          display: false,
           min: 1,
           max: 8
         }
       },
       plugins: {
-        legend: { display: false }, // hide legend
+        legend: { display: false },
         tooltip: {
           callbacks: {
-            label: ctx => `Avg Place: ${ctx.parsed.y.toFixed(2)}`
+            label: ctx => `Place ${ctx.parsed.y}`
           },
           backgroundColor: 'rgba(0,0,0,0.8)',
           titleColor: '#00ff99',
