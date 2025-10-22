@@ -217,8 +217,6 @@ margin-top: 12px;
   <div class="grid" id="composition-chips"></div>
   <div class="small" style="margin-top:10px">Place</div>
   <div class="grid" id="places"></div>
-  <div class="small" style="margin-top:10px" hidden>Playstyle</div>
-  <div class="grid" id="playstyles" hidden></div>
   <div class="small" style="margin-top:10px">Tier 3 Turn</div>
   <div class="grid" id="tier-buttons"></div>
   <div class="save-wrap"><button class="save-btn" id="save-match">Save Match <span id="save-check" class="checkmark" aria-hidden="true">
@@ -256,9 +254,6 @@ margin-top: 12px;
 
 </div>
 
-<div class="heading" hidden>Average Placement by Playstyle</div>
-<div class="chart-section" hidden><canvas id="playstyle-chart" class="canvas-glow chart-canvas"></canvas></div>
-
 <div class="heading">Average Placement by Tier 3 Turn</div>
 <div class="chart-section"><canvas id="tier-chart" class="canvas-glow chart-canvas"></canvas></div>
 
@@ -283,12 +278,10 @@ margin-top: 12px;
 
 <script>
 const COMPS=['Demons','Dragons','Mechs','Murlocs','Quilboar','Pirates','Beasts','Elementals','Undead','Naga','Menagerie'];
-const PLAYS=['Tempo','Balanced','Greed'];
 const TIER3=[3,4,5,6];
 let state = {
   comp: COMPS[0],
   place: 1,
-  play: PLAYS[0],
   tier: '3',
   matches: [],
   sortBy: 'matches' // default sort by number of matches
@@ -305,14 +298,13 @@ function uid(){return Date.now().toString()+'_'+Math.random().toString(36).slice
 function buildUI(){
   const compEl=document.getElementById('composition-chips');compEl.innerHTML='';COMPS.forEach(c=>{const d=document.createElement('div');d.className='chip';d.textContent=c;d.onclick=()=>{state.comp=c;render()};compEl.appendChild(d)});
   const pEl=document.getElementById('places');pEl.innerHTML='';for(let i=1;i<=8;i++){const b=document.createElement('button');b.className='select-btn';b.textContent=i;b.onclick=()=>{state.place=i;render()};pEl.appendChild(b)}
-  const playEl=document.getElementById('playstyles');playEl.innerHTML='';PLAYS.forEach(p=>{const d=document.createElement('div');d.className='chip';d.textContent=p;d.onclick=()=>{state.play=p;render()};playEl.appendChild(d)})
   const tierEl=document.getElementById('tier-buttons');tierEl.innerHTML='';TIER3.forEach(t=>{const b=document.createElement('button');b.className='select-btn';b.textContent=t;b.onclick=()=>{state.tier=t;render()};tierEl.appendChild(b)})
 }
 
-function render(){document.querySelectorAll('#composition-chips .chip').forEach(el=>el.classList.toggle('active',el.textContent===state.comp));document.querySelectorAll('#playstyles .chip').forEach(el=>el.classList.toggle('active',el.textContent===state.play));document.querySelectorAll('#places .select-btn').forEach((b,i)=>b.classList.toggle('active',i+1===state.place));document.querySelectorAll('#tier-buttons .select-btn').forEach(b=>b.classList.toggle('active',b.textContent==state.tier))}
+function render(){document.querySelectorAll('#composition-chips .chip').forEach(el=>el.classList.toggle('active',el.textContent===state.comp));document.querySelectorAll('#places .select-btn').forEach((b,i)=>b.classList.toggle('active',i+1===state.place));document.querySelectorAll('#tier-buttons .select-btn').forEach(b=>b.classList.toggle('active',b.textContent==state.tier))}
 
 document.getElementById('save-match').onclick = async () => {
-  const m = { id: uid(), composition: state.comp, place: state.place, play: state.play, tier: state.tier, created: Date.now() };
+  const m = { id: uid(), composition: state.comp, place: state.place, tier: state.tier, created: Date.now() };
   await addMatch(m);
   await refresh();
   await backupData(); // 🔥 automatic backup after save
@@ -539,10 +531,10 @@ if(state.sortBy === 'matches'){
 
 // modal functions
 const modalBg=document.getElementById('modal-bg');
-async function openDetails(comp){modalBg.innerHTML='';const box=document.createElement('div');box.className='modal';box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-weight:900">${comp} — matches</div><button id="modal-close" class="button-muted">Close</button></div><div id="modal-body"></div>`;modalBg.appendChild(box);document.getElementById('modal-close').onclick=()=>modalBg.style.display='none';modalBg.onclick=(e)=>{if(e.target===modalBg)modalBg.style.display='none'};const body=document.getElementById('modal-body');const matches=(await getAll()).filter(m=>m.composition===comp).sort((a,b)=>b.created-a.created);if(matches.length===0){body.innerHTML='<div class="small">No matches recorded for this composition.</div>'}else{matches.forEach(m=>{const row=document.createElement('div');row.className='match-row';const left=document.createElement('div');left.innerHTML=`<div style="font-weight:800">Place ${m.place}</div><div class="small">${m.play} • Tier ${m.tier==='—'?'—':m.tier}</div><div class="small">${new Date(m.created).toLocaleString()}</div>`;const del=document.createElement('button');del.className='del-btn';del.textContent='Delete';del.onclick=async(e)=>{e.stopPropagation();await deleteMatch(m.id);await refresh();openDetails(comp);toast('Deleted')};row.appendChild(left);row.appendChild(del);body.appendChild(row)})}modalBg.style.display='flex'}
+async function openDetails(comp){modalBg.innerHTML='';const box=document.createElement('div');box.className='modal';box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-weight:900">${comp} — matches</div><button id="modal-close" class="button-muted">Close</button></div><div id="modal-body"></div>`;modalBg.appendChild(box);document.getElementById('modal-close').onclick=()=>modalBg.style.display='none';modalBg.onclick=(e)=>{if(e.target===modalBg)modalBg.style.display='none'};const body=document.getElementById('modal-body');const matches=(await getAll()).filter(m=>m.composition===comp).sort((a,b)=>b.created-a.created);if(matches.length===0){body.innerHTML='<div class="small">No matches recorded for this composition.</div>'}else{matches.forEach(m=>{const row=document.createElement('div');row.className='match-row';const left=document.createElement('div');left.innerHTML=`<div style="font-weight:800">Place ${m.place}</div><div class="small">Tier ${m.tier==='—'?'—':m.tier}</div><div class="small">${new Date(m.created).toLocaleString()}</div>`;const del=document.createElement('button');del.className='del-btn';del.textContent='Delete';del.onclick=async(e)=>{e.stopPropagation();await deleteMatch(m.id);await refresh();openDetails(comp);toast('Deleted')};row.appendChild(left);row.appendChild(del);body.appendChild(row)})}modalBg.style.display='flex'}
 
 // show all matches modal and allow delete
-async function openAllMatches(){modalBg.innerHTML='';const box=document.createElement('div');box.className='modal';box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-weight:900">All Matches</div><button id="modal-close-all" class="button-muted">Close</button></div><div id="modal-body-all"></div>`;modalBg.appendChild(box);document.getElementById('modal-close-all').onclick=()=>modalBg.style.display='none';modalBg.onclick=(e)=>{if(e.target===modalBg)modalBg.style.display='none'};const body=document.getElementById('modal-body-all');const matches=(await getAll()).sort((a,b)=>b.created-a.created);if(matches.length===0){body.innerHTML='<div class="small">No matches recorded.</div>'}else{matches.forEach(m=>{const row=document.createElement('div');row.className='match-row';const left=document.createElement('div');left.innerHTML=`<div style="font-weight:800">${m.composition} • Place ${m.place}</div><div class="small">${m.play} • Tier ${m.tier==='—'?'—':m.tier}</div><div class="small">${new Date(m.created).toLocaleString()}</div>`;const del=document.createElement('button');del.className='del-btn';del.textContent='Delete';del.onclick=async(e)=>{e.stopPropagation();await deleteMatch(m.id);await refresh();openAllMatches();toast('Deleted')};row.appendChild(left);row.appendChild(del);body.appendChild(row)})}modalBg.style.display='flex'}
+async function openAllMatches(){modalBg.innerHTML='';const box=document.createElement('div');box.className='modal';box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-weight:900">All Matches</div><button id="modal-close-all" class="button-muted">Close</button></div><div id="modal-body-all"></div>`;modalBg.appendChild(box);document.getElementById('modal-close-all').onclick=()=>modalBg.style.display='none';modalBg.onclick=(e)=>{if(e.target===modalBg)modalBg.style.display='none'};const body=document.getElementById('modal-body-all');const matches=(await getAll()).sort((a,b)=>b.created-a.created);if(matches.length===0){body.innerHTML='<div class="small">No matches recorded.</div>'}else{matches.forEach(m=>{const row=document.createElement('div');row.className='match-row';const left=document.createElement('div');left.innerHTML=`<div style="font-weight:800">${m.composition} • Place ${m.place}</div><div class="small">Tier ${m.tier==='—'?'—':m.tier}</div><div class="small">${new Date(m.created).toLocaleString()}</div>`;const del=document.createElement('button');del.className='del-btn';del.textContent='Delete';del.onclick=async(e)=>{e.stopPropagation();await deleteMatch(m.id);await refresh();openAllMatches();toast('Deleted')};row.appendChild(left);row.appendChild(del);body.appendChild(row)})}modalBg.style.display='flex'}
 
 document.getElementById('show-all').onclick = ()=> openAllMatches();
 
@@ -563,7 +555,6 @@ const COMP_COLORS = {
   'Menagerie':'#8e44ad'
 };
 /* Generic color set for playstyle / tier charts (keeps them visually cohesive) */
-const PLAY_COLORS = [ '#de7676','#de7676', '#de7676'];
 const TIER_COLORS = ['#dedc76', '#dedc76', '#dedc76', '#dedc76'];
 
 
@@ -772,12 +763,6 @@ function drawCharts(){
 
   const avgCanvas = document.getElementById('avg-place-chart');
   drawBarChartAnimated(avgCanvas, compVals, (it,i)=>COMP_COLORS[it.name] || '#fff');
-
-  // Playstyle chart: map playstyles to the first N composition colors (keeps them visually consistent)
-  let playVals=PLAYS.map(p=>{const ms=state.matches.filter(m=>m.play===p);const avg=computeAvg(ms.map(m=>m.place));return{name:p,value:avg,matches:ms.length}});
-  playVals.sort((a,b)=>{if(a.value===null)return 1;if(b.value===null)return -1;return a.value-b.value});
-  const playCanvas = document.getElementById('playstyle-chart');
-  drawBarChartAnimated(playCanvas, playVals, (it,i)=> PLAY_COLORS[i % PLAY_COLORS.length]);
 
 
   // Tier chart
