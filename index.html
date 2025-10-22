@@ -498,9 +498,8 @@ function renderCards(){
   const compStats = COMPS.map(c => {
     const ms = state.matches.filter(m => m.composition === c);
     const avg = computeAvg(ms.map(m => m.place));
-    const commonPlay = mostCommon(ms.map(m => m.play));
     const avgTier = computeAvg(ms.map(m => m.tier === '—' ? 0 : m.tier));
-    return { name: c, matches: ms.length, avg, commonPlay, avgTier };
+    return { name: c, matches: ms.length, avg, avgTier };
   });
 
 // Sort compositions based on state.sortBy
@@ -520,7 +519,6 @@ if(state.sortBy === 'matches'){
       <div class="card-title">${stat.name}</div>
       <div class="big">Avg: ${stat.matches ? stat.avg.toFixed(2) : '-'}</div>
       <div class="small">Matches: ${stat.matches}</div>
-      <div class="small">Most common playstyle: ${stat.commonPlay}</div>
       <div class="small">Avg Tier 3 Turn: ${stat.matches ? stat.avgTier.toFixed(1) : '-'}</div>
     `;
     div.onclick = () => openDetails(stat.name);
