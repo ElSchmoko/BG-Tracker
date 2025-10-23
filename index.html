@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#317EFB">
 <title>BG Tracker</title>
 <style>
-/* Page */
+/* ===== PAGE LAYOUT ===== */
 body { margin:0; font-family:Inter,system-ui,Arial; background:#1b1b1b; color:#fff; padding:18px }
 .heading { font-size:28px; font-weight:800; margin:20px 0 12px; color:#fff }
 .headingTitle { font-size:16px; font-weight:700;gap:10px; margin:-12px 0 -20px; color:#000;
@@ -24,17 +24,17 @@ position: sticky;
   text-align: center;
    text-align:right }
 
-/* Sections */
+/* ===== PAGE SECTIONS ===== */
 .input-section { margin-bottom:18px } /* slightly reduced to fit new summary spacing */
 .chart-section { padding:18px; margin-bottom:28px }
 .stats-section { margin-bottom:28px }
 
-/* New summary panel (A) */
+/* ===== SUMMARY PANEL ===== */
 .summary-panel { display:flex; gap:16px; align-items:center; justify-content:flex-start; margin:18px 0; padding:10px 12px; border-radius:8px; background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.12)); color:#fff; box-shadow: 0 8px 20px rgba(0,0,0,0.35); }
 .summary-panel .stat { font-size:14px; color:rgba(255,255,255,0.9) }
 .summary-panel .stat .value { font-weight:800; font-size:18px; margin-left:8px; color:#fff }
 
-/* Grids */
+/* ===== GRID LAYOUT ===== */
 .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:10px }
 .chip, .select-btn { padding:14px 14px; background:#222; cursor:pointer; text-align:center; font-size:16px; color:#fff; border:white}
 .chip.active, .select-btn.active { background:#fff; color:#000; }
@@ -88,7 +88,7 @@ position: sticky;
 
 .button-muted{ padding:10px 14px; border-radius:8px; background:#222; color:#fff; border:0 }
 
-/* Cards */
+/* ===== CARD COMPONENTS ===== */
 .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:16px }
 /* Base flat accent style */
 .comp-card {
@@ -158,7 +158,7 @@ canvas { width:100%; display:block }
 .del-btn{background:#3a2b2b;border:0;color:#fff;padding:6px 10px;border-radius:6px;cursor:pointer}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#111;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04)}
 
-/* C) chart canvas glow styles (CSS) - complements the ctx shadow */
+/* ===== CANVAS GLOW EFFECT ===== */
 .canvas-glow {  }
 
 /* responsive tweak so that canvas height can be set in script reliably */
@@ -752,7 +752,7 @@ function drawCharts(){
 
  drawDonutChart();
   drawPlacementLineChart();
- 
+
   // Average placement per composition (map each comp to its color)
   let compVals=COMPS.map(c=>{const ms=state.matches.filter(m=>m.composition===c);const avg=computeAvg(ms.map(m=>m.place));return{name:c,value:avg,matches:ms.length}});
 
@@ -772,7 +772,7 @@ drawBarChartAnimated(tierCanvas, tierVals, (it,i)=> TIER_COLORS[i % TIER_COLORS.
 
  document.getElementById('timeRange')?.addEventListener('change', drawPlacementLineChart);
 
- 
+
 }
 
 /* Update small summary section (A) */
