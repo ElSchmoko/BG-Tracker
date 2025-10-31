@@ -30,9 +30,10 @@ position: sticky;
 .stats-section { margin-bottom:28px }
 
 /* ===== SUMMARY PANEL ===== */
-.summary-panel { display:flex; gap:16px; align-items:center; justify-content:flex-start; margin:18px 0; padding:10px 12px; border-radius:8px; background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.12)); color:#fff; box-shadow: 0 8px 20px rgba(0,0,0,0.35); }
-.summary-panel .stat { font-size:14px; color:rgba(255,255,255,0.9) }
-.summary-panel .stat .value { font-weight:800; font-size:18px; margin-left:8px; color:#fff }
+.summary-panel { display:flex; gap:12px; align-items:center; justify-content:flex-start; margin:18px 0; padding:10px 12px; border-radius:8px; background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.12)); color:#fff; box-shadow: 0 8px 20px rgba(0,0,0,0.35); font-size:14px; flex-wrap:nowrap; }
+.summary-panel .stat { color:rgba(255,255,255,0.9); white-space:nowrap; flex:1; text-align:center }
+.summary-panel .stat .label { display:inline-block; margin-right:6px; color:rgba(255,255,255,0.7); font-weight:600; font-size:13px; }
+.summary-panel .stat .value { font-weight:800; font-size:18px; color:#00ffcc }
 
 /* ===== GRID LAYOUT ===== */
 .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:10px }
@@ -108,7 +109,7 @@ position: relative;        /* add this so ::before works */
   transform: translateY(-3px);
 }
 
-comp-card::before {
+.comp-card::before {
   content: "";
   position: absolute;
   left: 0;
@@ -201,11 +202,6 @@ margin-top: 12px;
 #timeRange {
   margin-bottom: 8px;
 }
-
-
-
-
-
 </style>
 </head>
 <body>
@@ -226,10 +222,11 @@ margin-top: 12px;
   </span></button>
 </div>
 
-<!-- A) New small summary section inserted here -->
+<!-- Summary panel with Winrate -->
 <div id="summary" class="summary-panel" aria-live="polite">
-  <div class="stat">Total matches: <span id="totalMatches" class="value">0</span></div>
-  <div class="stat">Average placement: <span id="avgPlacementOverall" class="value">-</span></div>
+  <div class="stat"><span class="label">Total</span><span id="totalMatches" class="value">0</span></div>
+  <div class="stat"><span class="label">Avg</span><span id="avgPlacementOverall" class="value">-</span></div>
+  <div class="stat"><span class="label">Winrate</span><span id="winrate" class="value">0%</span></div>
 </div>
 
 <div class="heading">Average Placement per Composition</div>
@@ -303,13 +300,28 @@ function buildUI(){
 
 function render(){document.querySelectorAll('#composition-chips .chip').forEach(el=>el.classList.toggle('active',el.textContent===state.comp));document.querySelectorAll('#places .select-btn').forEach((b,i)=>b.classList.toggle('active',i+1===state.place));document.querySelectorAll('#tier-buttons .select-btn').forEach(b=>b.classList.toggle('active',b.textContent==state.tier))}
 
+/* single save handler kept (prevents duplicates) */
 document.getElementById('save-match').onclick = async () => {
-  const m = { id: uid(), composition: state.comp, place: state.place, tier: state.tier, created: Date.now() };
+  const m = {
+    id: uid(),
+    composition: state.comp,
+    place: state.place,
+    play: state.play,
+    tier: state.tier,
+    created: Date.now()
+  };
+
   await addMatch(m);
   await refresh();
-  await backupData(); // 🔥 automatic backup after save
+
+  const backedUp = await backupData();
+  if (backedUp) {
+    toast('Match saved and backed up');
+  } else {
+    toast('Match saved (backup unavailable)');
+  }
+
   showCheck();
-  toast('Match saved and backed up');
 };
 
 function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),1600)}
@@ -450,32 +462,6 @@ document.querySelector('div[style*="display:flex"]').appendChild(backupBtn);
 })();
 
 /* ------------------------------------------
-   Save Match Handler (auto backup integrated)
------------------------------------------- */
-document.getElementById('save-match').onclick = async () => {
-  const m = {
-    id: uid(),
-    composition: state.comp,
-    place: state.place,
-    play: state.play,
-    tier: state.tier,
-    created: Date.now()
-  };
-
-  await addMatch(m);
-  await refresh();
-
-  const backedUp = await backupData();
-  if (backedUp) {
-    toast('Match saved and backed up');
-  } else {
-    toast('Match saved (backup unavailable)');
-  }
-
-  showCheck();
-};
-
-/* ------------------------------------------
    Confirm Before Clearing All Data
 ------------------------------------------ */
 document.getElementById('clear-data').onclick = async () => {
@@ -486,7 +472,10 @@ document.getElementById('clear-data').onclick = async () => {
 };
 
 
-async function refresh(){state.matches=await getAll();renderCards();drawCharts();updateSummary();}
+/* ------------------------------------------
+   UI / Cards / Charts / Helpers
+------------------------------------------ */
+
 function computeAvg(arr){return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null}
 function mostCommon(arr){if(!arr.length) return '-';const f={};arr.forEach(a=>f[a]=(f[a]||0)+1);return Object.keys(f).reduce((a,b)=>f[a]>=f[b]?a:b)}
 
@@ -502,14 +491,12 @@ function renderCards(){
     return { name: c, matches: ms.length, avg, avgTier };
   });
 
-// Sort compositions based on state.sortBy
-if(state.sortBy === 'matches'){
-  compStats.sort((a,b) => b.matches - a.matches); // descending
-}else if(state.sortBy === 'avg'){
-  compStats.sort((a,b) => a.avg - b.avg); // ascending: lower placement is better
-}
-
-
+  // Sort compositions based on state.sortBy
+  if(state.sortBy === 'matches'){
+    compStats.sort((a,b) => b.matches - a.matches); // descending
+  }else if(state.sortBy === 'avg'){
+    compStats.sort((a,b) => a.avg - b.avg); // ascending: lower placement is better
+  }
 
   // Render in the new order
   compStats.forEach(stat => {
@@ -525,7 +512,6 @@ if(state.sortBy === 'matches'){
     cards.appendChild(div);
   });
 }
-
 
 // modal functions
 const modalBg=document.getElementById('modal-bg');
@@ -601,10 +587,10 @@ function drawBarChartAnimated(canvas, items, colorForItemFn) {
       ctx.fillRect(0, y, currentW, 32);
       ctx.restore();
 
-// draw border outline
-ctx.strokeStyle = 'rgba(255,255,255,0.4)'; // or use col for colored border
-ctx.lineWidth = 2;
-ctx.strokeRect(0.5, y + 0.5, currentW - 1, 32 - 1);
+      // draw border outline
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(0.5, y + 0.5, Math.max(0.1, currentW - 1), 32 - 1);
 
       // label
       ctx.fillStyle = '#ffffff';
@@ -693,8 +679,8 @@ function drawPlacementLineChart() {
         borderColor: '#00ff99',
         backgroundColor: 'rgba(0,255,153,0.1)',
         fill: 'start',
-        tension: 0,              // 🔹 straight lines (no smoothing)
-        pointRadius: 3,          // 🔹 small dots
+        tension: 0,
+        pointRadius: 3,
         pointBackgroundColor: '#00ff99',
         pointHoverRadius: 4,
         borderWidth: 2
@@ -708,11 +694,9 @@ function drawPlacementLineChart() {
         easing: 'easeOutQuart'
       },
       scales: {
-        x: {
-          display: false // hide horizontal axis labels
-        },
+        x: { display: false },
         y: {
-          reverse: true,        // 🔹 smaller = higher rank
+          reverse: true,
           display: true,
           min: 1,
           max: 8,
@@ -721,27 +705,20 @@ function drawPlacementLineChart() {
             color: 'rgba(255,255,255,0.4)',
             font: { size: 11 }
           },
-          grid: {
-            color: 'rgba(255,255,255,0.08)',
-            lineWidth: 1
-          },
-          title: { display: false } // 🔹 removed "Placement" text
+          grid: { color: 'rgba(255,255,255,0.08)', lineWidth: 1 },
+          title: { display: false }
         }
       },
       plugins: {
         legend: { display: false },
         tooltip: {
-          callbacks: {
-            label: ctx => `Place ${ctx.parsed.y}`
-          },
+          callbacks: { label: ctx => `Place ${ctx.parsed.y}` },
           backgroundColor: 'rgba(0,0,0,0.85)',
           titleColor: '#00ff99',
           bodyColor: '#fff'
         }
       },
-      elements: {
-        line: { borderJoinStyle: 'round' }
-      }
+      elements: { line: { borderJoinStyle: 'round' } }
     }
   });
 }
@@ -750,7 +727,7 @@ function drawPlacementLineChart() {
 
 function drawCharts(){
 
- drawDonutChart();
+  drawDonutChart();
   drawPlacementLineChart();
 
   // Average placement per composition (map each comp to its color)
@@ -768,19 +745,33 @@ function drawCharts(){
   let tierVals=tierList.map(t=>{const ms=state.matches.filter(m=>m.tier==t);const avg=computeAvg(ms.map(m=>m.place));return{name:String(t),value:avg,matches:ms.length}});
   tierVals.sort((a,b)=>{if(a.value===null)return 1;if(b.value===null)return -1;return a.value-b.value});
   const tierCanvas = document.getElementById('tier-chart');
-drawBarChartAnimated(tierCanvas, tierVals, (it,i)=> TIER_COLORS[i % TIER_COLORS.length]);
+  drawBarChartAnimated(tierCanvas, tierVals, (it,i)=> TIER_COLORS[i % TIER_COLORS.length]);
 
- document.getElementById('timeRange')?.addEventListener('change', drawPlacementLineChart);
-
-
+  document.getElementById('timeRange')?.addEventListener('change', drawPlacementLineChart);
 }
 
 /* Update small summary section (A) */
 function updateSummary(){
   const total = state.matches.length || 0;
   const avg = computeAvg(state.matches.map(m=>m.place));
+  const top4 = state.matches.filter(m => Number(m.place) <= 4).length;
+  const winrate = total ? (top4 / total * 100).toFixed(1) : 0;
+
   document.getElementById('totalMatches').textContent = total;
   document.getElementById('avgPlacementOverall').textContent = avg ? avg.toFixed(2) : '-';
+  document.getElementById('winrate').textContent = `${winrate}%`;
+
+  // optional: color code winrate for quick visual feedback
+  const winEl = document.getElementById('winrate');
+  if (total === 0) {
+    winEl.style.color = '#00ffcc';
+  } else if (winrate >= 60) {
+    winEl.style.color = '#7CFFB2';
+  } else if (winrate >= 40) {
+    winEl.style.color = '#FFD36B';
+  } else {
+    winEl.style.color = '#FF7B7B';
+  }
 }
 
 document.getElementById('sort-cards').onchange = (e) => {
@@ -791,8 +782,19 @@ document.getElementById('sort-cards').onchange = (e) => {
 /* initialize */
 (async()=>{await openDb();buildUI();render();await refresh()})();
 
+/* showCheck helper (animates checkmark) */
+function showCheck(){
+  const el = document.getElementById('save-check');
+  if(!el) return;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 1200);
+}
+
 // import
 const importBtn=document.getElementById('import-data');importBtn.onclick=()=>{const input=document.createElement('input');input.type='file';input.accept='application/json';input.onchange=async()=>{const file=input.files[0];if(!file)return;const text=await file.text();try{const arr=JSON.parse(text);const tx=db.transaction('matches','readwrite');const store=tx.objectStore('matches');arr.forEach(m=>{if(!m.id)m.id=uid();store.put(m)});tx.oncomplete=()=>refresh()}catch(err){alert('Import failed: '+err.message)}};input.click()};
+
+/* refresh wrapper */
+async function refresh(){state.matches=await getAll();renderCards();drawCharts();updateSummary();}
 
 </script>
   <script>
