@@ -263,9 +263,10 @@ margin-top: 12px;
 <!-- DROP DOWN MOVED ABOVE SUMMARY (user requested) -->
 <div id="timeRangeFilters" style="display:flex; gap:8px; flex-wrap:nowrap; margin-bottom:8px;">
   <button class="time-filter-btn" data-range="10">Last 10</button>
-  <button class="time-filter-btn" data-range="50">Last 50</button>
-  <button class="time-filter-btn" data-range="100">Last 100</button>
-  <button class="time-filter-btn" data-range="all">All</button>
+  <button class="time-filter-btn" data-range="25">25</button>
+  <button class="time-filter-btn" data-range="50">50</button>
+  <button class="time-filter-btn" data-range="100">100</button>
+  <button class="time-filter-btn" data-range="all">All Matches</button>
 </div>
 
 
@@ -276,7 +277,7 @@ margin-top: 12px;
   <div class="stat"><span class="label">Winrate</span><span id="winrate" class="value">0%</span></div>
 </div>
 
-<!-- Placement Over Time (moved to be the first graph after summary) -->
+<!-- Placements (moved to be the first graph after summary) -->
 <div class="heading">Placement Over Time</div>
 <div class="chart-section">
   <canvas id="placementLineChart"></canvas>
@@ -908,7 +909,7 @@ if(defaultBtn) defaultBtn.click();
 
 // Modify getFilteredMatches to check state.timeRange
 function getFilteredMatches(allMatches) {
-  const rangeVal = state.timeRange || '10';
+  const rangeVal = state.timeRange || '10'; // default to 10 if not set
   let matches = [...allMatches].sort((a, b) => a.created - b.created);
   if (rangeVal !== 'all') {
     const limit = parseInt(rangeVal);
@@ -916,6 +917,7 @@ function getFilteredMatches(allMatches) {
   }
   return matches;
 }
+
 
 
 
