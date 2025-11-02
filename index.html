@@ -200,6 +200,42 @@ margin-top: 12px;
 #timeRange {
   margin-bottom: 8px;
 }
+
+
+.time-filter-btn {
+  padding: 10px 14px;           /* same padding as input buttons */
+  font-size: 14px;              /* slightly smaller than main save button */
+  font-weight: 700;
+  border-radius: 8px;
+  border: 0;                     /* no border, consistent with input buttons */
+  background: #222;              /* dark input-style background */
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.time-filter-btn:hover {
+  background: #333;              /* subtle hover effect */
+}
+
+.time-filter-btn.active {
+  background: linear-gradient(135deg, #00ff99, #00cccc);
+  color: #000;
+}
+
+
+.section-separator {
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,0.2), rgba(255,255,255,0));
+  margin: 28px 0; /* larger vertical spacing between input & display */
+  border-radius: 1px;
+}
+
+
+
+
 </style>
 </head>
 <body>
@@ -220,13 +256,18 @@ margin-top: 12px;
   </span></button>
 </div>
 
+<div class="section-separator"></div>
+
+
+
 <!-- DROP DOWN MOVED ABOVE SUMMARY (user requested) -->
-<select id="timeRange" class="custom-select" style="max-width:220px; margin-bottom: 8px; margin-top: 20px;">
-  <option value="10">Last 10 Matches</option>
-  <option value="50">Last 50 Matches</option>
-  <option value="100">Last 100 Matches</option>
-  <option value="all">All Matches</option>
-</select>
+<div id="timeRangeFilters" style="display:flex; gap:8px; flex-wrap:nowrap; margin-bottom:8px;">
+  <button class="time-filter-btn" data-range="10">Last 10</button>
+  <button class="time-filter-btn" data-range="50">Last 50</button>
+  <button class="time-filter-btn" data-range="100">Last 100</button>
+  <button class="time-filter-btn" data-range="all">All</button>
+</div>
+
 
 <!-- Summary panel with Winrate -->
 <div id="summary" class="summary-panel" aria-live="polite">
@@ -449,12 +490,19 @@ async function backupData() {
   return false;
 }
 
-// --- Add a manual setup button ---
+// --- Add a manual setup button at the bottom next to other action buttons ---
 const backupBtn = document.createElement('button');
 backupBtn.textContent = 'Setup Backup File';
 backupBtn.className = 'button-muted';
 backupBtn.onclick = chooseBackupFile;
-document.querySelector('div[style*="display:flex"]').appendChild(backupBtn);
+
+// Append to the bottom buttons container
+const bottomButtonsContainer = document.querySelector('div[style*="display:flex"][style*="margin-top:8px"]');
+if (bottomButtonsContainer) {
+  bottomButtonsContainer.appendChild(backupBtn);
+}
+
+
 
 // --- Try restoring previous handle automatically ---
 (async () => {
@@ -782,17 +830,18 @@ function drawCharts(){
 }
 
 /* Update small summary section (A) */
-function updateSummary(){
-  const total = state.matches.length || 0;
-  const avg = computeAvg(state.matches.map(m=>m.place));
-  const top4 = state.matches.filter(m => Number(m.place) <= 4).length;
+function updateSummary() {
+  const filteredMatches = getFilteredMatches(state.matches); // use filtered data
+  const total = filteredMatches.length || 0;
+  const avg = computeAvg(filteredMatches.map(m => m.place));
+  const top4 = filteredMatches.filter(m => Number(m.place) <= 4).length;
   const winrate = total ? (top4 / total * 100).toFixed(1) : 0;
 
   document.getElementById('totalMatches').textContent = total;
   document.getElementById('avgPlacementOverall').textContent = avg ? avg.toFixed(2) : '-';
   document.getElementById('winrate').textContent = `${winrate}%`;
 
-  // optional: color code winrate for quick visual feedback
+  // optional: color code winrate
   const winEl = document.getElementById('winrate');
   if (total === 0) {
     winEl.style.color = '#00ffcc';
@@ -804,6 +853,7 @@ function updateSummary(){
     winEl.style.color = '#FF7B7B';
   }
 }
+
 
 document.getElementById('sort-cards').onchange = (e) => {
   state.sortBy = e.target.value;
@@ -834,6 +884,41 @@ if ('serviceWorker' in navigator) {
     .then(() => console.log('Service Worker registered!'))
     .catch(err => console.log('Service Worker failed:', err));
 }
+
+// initialize filter buttons
+const timeButtons = document.querySelectorAll('.time-filter-btn');
+timeButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    // remove active from all
+    timeButtons.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    // update filter
+    const rangeVal = btn.dataset.range;
+    state.timeRange = rangeVal; // store selected range
+
+    drawCharts();
+    updateSummary();
+  });
+});
+
+// Optional: set default selection to "Last 10"
+const defaultBtn = document.querySelector('.time-filter-btn[data-range="10"]');
+if(defaultBtn) defaultBtn.click();
+
+// Modify getFilteredMatches to check state.timeRange
+function getFilteredMatches(allMatches) {
+  const rangeVal = state.timeRange || '10';
+  let matches = [...allMatches].sort((a, b) => a.created - b.created);
+  if (rangeVal !== 'all') {
+    const limit = parseInt(rangeVal);
+    matches = matches.slice(-limit);
+  }
+  return matches;
+}
+
+
+
 </script>
  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
