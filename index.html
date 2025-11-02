@@ -141,10 +141,8 @@ position: relative;        /* add this so ::before works */
 /* subtle overlay stripe effect to give depth */
 .comp-card::after { content:""; position:absolute; inset:0; pointer-events:none; background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.08)); mix-blend-mode: overlay; }
 
-/* hover */
 .comp-card:hover { transform: translateY(-6px); box-shadow: 0 14px 40px rgba(0,0,0,0.55); }
 
-/* Small helpers */
 .small { font-size:14px; color:#cccccc }
 .big { font-weight:700; font-size:24px }
 .card-title { font-size:22px; font-weight:700; margin-bottom:8px }
@@ -222,6 +220,14 @@ margin-top: 12px;
   </span></button>
 </div>
 
+<!-- DROP DOWN MOVED ABOVE SUMMARY (user requested) -->
+<select id="timeRange" class="custom-select" style="max-width:220px; margin-bottom: 8px;">
+  <option value="10">Last 10 Matches</option>
+  <option value="50">Last 50 Matches</option>
+  <option value="100">Last 100 Matches</option>
+  <option value="all">All Matches</option>
+</select>
+
 <!-- Summary panel with Winrate -->
 <div id="summary" class="summary-panel" aria-live="polite">
   <div class="stat"><span class="label">Total</span><span id="totalMatches" class="value">0</span></div>
@@ -229,26 +235,20 @@ margin-top: 12px;
   <div class="stat"><span class="label">Winrate</span><span id="winrate" class="value">0%</span></div>
 </div>
 
+<!-- Placement Over Time (moved to be the first graph after summary) -->
+<div class="heading">Placement Over Time</div>
+<div class="chart-section">
+  <canvas id="placementLineChart"></canvas>
+</div>
+
+<!-- Average Placement per Composition (now after Placement Over Time) -->
 <div class="heading">Average Placement per Composition</div>
 <div class="chart-section"><canvas id="avg-place-chart" class="canvas-glow chart-canvas"></canvas></div>
 
- <!-- NEW GRAPH 1: Donut Chart -->
+<!-- Matches per Composition (moved below Avg placement) -->
 <div class="heading">Matches per Composition</div>
 <div class="chart-section">
   <canvas id="matchesDonutChart"></canvas>
-</div>
-
-<!-- NEW GRAPH 2: Line Chart -->
-<div class="heading">Placement Over Time</div>
-<div class="chart-section">
-<select id="timeRange" class="custom-select" style="margin-bottom: 8px;">
-  <option value="10">Last 10 Matches</option>
-  <option value="50">Last 50 Matches</option>
-  <option value="100">Last 100 Matches</option>
-  <option value="all">All Matches</option>
-</select>
-<canvas id="placementLineChart"></canvas>
-
 </div>
 
 <div class="heading">Average Placement by Tier 3 Turn</div>
@@ -479,11 +479,24 @@ document.getElementById('clear-data').onclick = async () => {
 function computeAvg(arr){return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null}
 function mostCommon(arr){if(!arr.length) return '-';const f={};arr.forEach(a=>f[a]=(f[a]||0)+1);return Object.keys(f).reduce((a,b)=>f[a]>=f[b]?a:b)}
 
+/* Return matches filtered by the current timeRange dropdown (applies to all charts) */
+function getFilteredMatches(allMatches) {
+  const rangeSel = document.getElementById('timeRange');
+  if (!rangeSel) return allMatches;
+  const rangeVal = rangeSel.value;
+  let matches = [...allMatches].sort((a, b) => a.created - b.created);
+  if (rangeVal !== 'all') {
+    const limit = parseInt(rangeVal);
+    matches = matches.slice(-limit);
+  }
+  return matches;
+}
+
 function renderCards(){
   const cards = document.getElementById('cards');
   cards.innerHTML = '';
 
-  // Create a list of all compositions with their stats
+  // Use the whole state.matches for cards (cards are summary across all data) — unchanged behavior
   const compStats = COMPS.map(c => {
     const ms = state.matches.filter(m => m.composition === c);
     const avg = computeAvg(ms.map(m => m.place));
@@ -610,13 +623,13 @@ function drawBarChartAnimated(canvas, items, colorForItemFn) {
 let donutChartInstance = null;
 let lineChartInstance = null;
 
-function drawDonutChart() {
+function drawDonutChart(filteredMatches) {
   const ctx = document.getElementById('matchesDonutChart');
   if (!ctx) return;
 
   const data = COMPS.map(c => ({
     name: c,
-    value: state.matches.filter(m => m.composition === c).length
+    value: filteredMatches.filter(m => m.composition === c).length
   })).filter(d => d.value > 0);
 
   if (donutChartInstance) donutChartInstance.destroy();
@@ -647,18 +660,11 @@ function drawDonutChart() {
   });
 }
 
-function drawPlacementLineChart() {
+function drawPlacementLineChart(filteredMatches) {
   const ctx = document.getElementById('placementLineChart');
-  const rangeSel = document.getElementById('timeRange');
   if (!ctx) return;
 
-  const rangeVal = rangeSel.value;
-  let matches = [...state.matches].sort((a, b) => a.created - b.created);
-
-  if (rangeVal !== 'all') {
-    const limit = parseInt(rangeVal);
-    matches = matches.slice(-limit);
-  }
+  let matches = [...filteredMatches].sort((a, b) => a.created - b.created);
 
   // ✅ Default baseline at bottom (place 8)
   if (matches.length === 0) {
@@ -670,6 +676,29 @@ function drawPlacementLineChart() {
   const labels = matches.map((_, i) => `#${i + 1}`);
   const placements = matches.map(m => m.place ?? 8);
 
+  // Custom plugin to draw horizontal white line at 4.5
+  const midlinePlugin = {
+    id: 'midlinePlugin',
+    afterDraw: function(chart) {
+      const yScale = chart.scales.y;
+      if (!yScale) return;
+      const ctx = chart.ctx;
+      const yValue = 4.5;
+      // if yValue outside scale, skip
+      if (yValue < yScale.min || yValue > yScale.max) return;
+      const y = yScale.getPixelForValue(yValue);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,1)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.moveTo(chart.chartArea.left, y);
+      ctx.lineTo(chart.chartArea.right, y);
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
+
   lineChartInstance = new Chart(ctx, {
     type: 'line',
     data: {
@@ -680,9 +709,10 @@ function drawPlacementLineChart() {
         backgroundColor: 'rgba(0,255,153,0.1)',
         fill: 'start',
         tension: 0,
-        pointRadius: 3,
+        // much smaller individual dots per request
+        pointRadius: 1,
         pointBackgroundColor: '#00ff99',
-        pointHoverRadius: 4,
+        pointHoverRadius: 2,
         borderWidth: 2
       }]
     },
@@ -719,35 +749,46 @@ function drawPlacementLineChart() {
         }
       },
       elements: { line: { borderJoinStyle: 'round' } }
-    }
+    },
+    plugins: [midlinePlugin]
   });
 }
 
 
 
 function drawCharts(){
+  // all charts must follow the dropdown selection -> get filtered matches
+  const filteredMatches = getFilteredMatches(state.matches);
 
-  drawDonutChart();
-  drawPlacementLineChart();
+  // Placement line chart uses filteredMatches
+  drawPlacementLineChart(filteredMatches);
 
-  // Average placement per composition (map each comp to its color)
-  let compVals=COMPS.map(c=>{const ms=state.matches.filter(m=>m.composition===c);const avg=computeAvg(ms.map(m=>m.place));return{name:c,value:avg,matches:ms.length}});
-
+  // Average placement per composition (map each comp to its color) using filteredMatches
+  let compVals=COMPS.map(c=>{const ms=filteredMatches.filter(m=>m.composition===c);const avg=computeAvg(ms.map(m=>m.place));return{name:c,value:avg,matches:ms.length}});
   // sort by value similar as before (nulls last)
   compVals.sort((a,b)=>{if(a.value===null&&b.value===null)return 0;if(a.value===null)return 1;if(b.value===null)return -1;return a.value-b.value});
-
   const avgCanvas = document.getElementById('avg-place-chart');
   drawBarChartAnimated(avgCanvas, compVals, (it,i)=>COMP_COLORS[it.name] || '#fff');
 
+  // Matches per composition donut using filteredMatches
+  drawDonutChart(filteredMatches);
 
-  // Tier chart
+  // Tier chart using filteredMatches
   let tierList=TIER3.filter(x=>'—'!==x);
-  let tierVals=tierList.map(t=>{const ms=state.matches.filter(m=>m.tier==t);const avg=computeAvg(ms.map(m=>m.place));return{name:String(t),value:avg,matches:ms.length}});
+  let tierVals=tierList.map(t=>{const ms=filteredMatches.filter(m=>m.tier==t);const avg=computeAvg(ms.map(m=>m.place));return{name:String(t),value:avg,matches:ms.length}});
   tierVals.sort((a,b)=>{if(a.value===null)return 1;if(b.value===null)return -1;return a.value-b.value});
   const tierCanvas = document.getElementById('tier-chart');
   drawBarChartAnimated(tierCanvas, tierVals, (it,i)=> TIER_COLORS[i % TIER_COLORS.length]);
 
-  document.getElementById('timeRange')?.addEventListener('change', drawPlacementLineChart);
+  // Attach dropdown change to redraw all charts (only once)
+  const tSel = document.getElementById('timeRange');
+  if (tSel && !tSel._chartsBound) {
+    tSel.addEventListener('change', () => {
+      // redraw charts based on new selection
+      drawCharts();
+    });
+    tSel._chartsBound = true;
+  }
 }
 
 /* Update small summary section (A) */
