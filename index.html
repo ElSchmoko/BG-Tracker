@@ -193,8 +193,8 @@ margin-top: 12px;
 
 #placementLineChart {
   width: 100%;
-  height: 180px;
-  max-height: 240px;
+  height: 260px; /* more vertical space */
+  margin-left: -20px; /* shifts chart left to open up space */
 }
 
 #timeRange {
@@ -660,60 +660,35 @@ function drawDonutChart(filteredMatches) {
   });
 }
 
+
+
+
+
 function drawPlacementLineChart(filteredMatches) {
   const ctx = document.getElementById('placementLineChart');
   if (!ctx) return;
 
-  let matches = [...filteredMatches].sort((a, b) => a.created - b.created);
-
-  // ✅ Default baseline at bottom (place 8)
-  if (matches.length === 0) {
-    matches = [{ place: 8 }];
-  }
-
-  if (lineChartInstance) lineChartInstance.destroy();
-
-  const labels = matches.map((_, i) => `#${i + 1}`);
+  const matches = [...filteredMatches].sort((a,b) => a.created - b.created);
+  const labels = matches.map((_, i) => `#${i+1}`);
   const placements = matches.map(m => m.place ?? 8);
 
-  // Custom plugin to draw horizontal white line at 4.5
-  const midlinePlugin = {
-    id: 'midlinePlugin',
-    afterDraw: function(chart) {
-      const yScale = chart.scales.y;
-      if (!yScale) return;
-      const ctx = chart.ctx;
-      const yValue = 4.5;
-      // if yValue outside scale, skip
-      if (yValue < yScale.min || yValue > yScale.max) return;
-      const y = yScale.getPixelForValue(yValue);
-      ctx.save();
-      ctx.strokeStyle = 'rgba(255,255,255,1)';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([6, 6]);
-      ctx.beginPath();
-      ctx.moveTo(chart.chartArea.left, y);
-      ctx.lineTo(chart.chartArea.right, y);
-      ctx.stroke();
-      ctx.restore();
-    }
-  };
+  // Colors based on win/loss
+  const colors = placements.map(p => (p <= 4 ? '#00cc66' : '#ff4444'));
+
+  // Transform placement: 1->8, 8->1 for bar height
+  const heights = placements.map(p => 9 - p);
+
+  if(lineChartInstance) lineChartInstance.destroy();
 
   lineChartInstance = new Chart(ctx, {
-    type: 'line',
+    type: 'bar',
     data: {
       labels,
       datasets: [{
-        data: placements,
-        borderColor: '#00ff99',
-        backgroundColor: 'rgba(0,255,153,0.1)',
-        fill: 'start',
-        tension: 0,
-        // much smaller individual dots per request
-        pointRadius: 1,
-        pointBackgroundColor: '#00ff99',
-        pointHoverRadius: 2,
-        borderWidth: 2
+        label: 'Placement',
+        data: heights,
+        backgroundColor: colors,
+        borderWidth: 0
       }]
     },
     options: {
@@ -726,33 +701,48 @@ function drawPlacementLineChart(filteredMatches) {
       scales: {
         x: { display: false },
         y: {
-          reverse: true,
-          display: true,
           min: 1,
           max: 8,
           ticks: {
             stepSize: 1,
             color: 'rgba(255,255,255,0.4)',
-            font: { size: 11 }
+            font: { size: 11 },
+            // Flip labels: show 1 at top, 8 at bottom
+            callback: function(val) { return 9 - val; }
           },
-          grid: { color: 'rgba(255,255,255,0.08)', lineWidth: 1 },
-          title: { display: false }
+          grid: { color: 'rgba(255,255,255,0.08)' }
         }
       },
       plugins: {
         legend: { display: false },
         tooltip: {
-          callbacks: { label: ctx => `Place ${ctx.parsed.y}` },
+          callbacks: { label: ctx => `Place ${placements[ctx.dataIndex]}` },
           backgroundColor: 'rgba(0,0,0,0.85)',
           titleColor: '#00ff99',
           bodyColor: '#fff'
         }
-      },
-      elements: { line: { borderJoinStyle: 'round' } }
-    },
-    plugins: [midlinePlugin]
+      }
+    }
   });
+
+
+  // Animate bars growing from bottom
+  const observer = new IntersectionObserver(entries => {
+    if (!entries[0].isIntersecting) return;
+    lineChartInstance.data.datasets[1].data = topBar;
+    lineChartInstance.options.animation = {
+      duration: 800,
+      easing: 'easeOutQuart'
+    };
+    lineChartInstance.update();
+    observer.disconnect();
+  }, { threshold: 0.25 });
+
+  observer.observe(ctx);
 }
+
+
+
 
 
 
