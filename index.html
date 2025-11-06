@@ -289,6 +289,11 @@ margin-top: 12px;
   <canvas id="matchesDonutChart"></canvas>
 </div>
 
+<div class="heading">Winrate per Comp</div>
+<div class="chart-section">
+  <canvas id="winrateBarChart" style="width:100%;height:420px"></canvas>
+</div>
+
 <!-- Average Placement by Composition (now after Placement Over Time) -->
 <div class="heading">Average Placements</div>
 <div class="chart-section"><canvas id="avg-place-chart" class="canvas-glow chart-canvas"></canvas></div>
@@ -314,6 +319,9 @@ margin-top: 12px;
 </div>
 
 <div id="modal-bg" class="modal-bg" style="display:none"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.2.1"></script>
 
 <script>
 const COMPS=['Demons','Dragons','Mechs','Murlocs','Quilboar','Pirates','Beasts','Elementals','Undead','Naga','Menagerie'];
@@ -713,6 +721,141 @@ function drawDonutChart(filteredMatches) {
 
 
 
+function drawWinrateBarChart(filteredMatches) {
+  const ctx = document.getElementById('winrateBarChart');
+  if (!ctx) return;
+
+  const data = COMPS.map(c => {
+    const ms = filteredMatches.filter(m => m.composition === c);
+    const total = ms.length;
+    const top4 = ms.filter(x => Number(x.place) <= 4).length;
+    const wr = total ? (top4 / total) * 100 : 0;
+    return { name: c, value: wr, matches: total };
+  }).filter(d => d.matches > 0)
+    .sort((a, b) => b.value - a.value);
+
+  if (ctx._chartInstance) ctx._chartInstance.destroy();
+
+  ctx._chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.name),
+      datasets: [{
+        data: data.map(d => 0), // Start at 0 for animation
+        backgroundColor: data.map(d => COMP_COLORS[d.name]),
+        borderRadius: 0,
+        borderWidth: data.map(d => d.value >= 50 ? 2 : 0),
+        borderColor: data.map(d => d.value >= 50 ? '#fff' : 'transparent'),
+        barPercentage: 0.9,
+        categoryPercentage: 0.95
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'x',
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { display: false }
+        },
+        y: {
+          min: 0,
+          max: 100,
+          grid: {
+            drawTicks: false,
+            color: (ctx) => ctx.tick.value === 50 ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0)',
+            lineWidth: (ctx) => ctx.tick.value === 50 ? 3 : 0
+          },
+          ticks: {
+            display: false
+          },
+          border: { display: false }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.label}: ${ctx.formattedValue}% winrate (${data[ctx.dataIndex].matches} matches)`
+          },
+          backgroundColor: 'rgba(0,0,0,0.85)',
+          titleColor: '#00ff99',
+          bodyColor: '#fff'
+        },
+        annotation: {
+          annotations: {
+            fiftyLine: {
+              type: 'line',
+              yMin: 50,
+              yMax: 50,
+              borderColor: '#ffffffcc',
+              borderWidth: 3,
+              label: {
+                enabled: true,
+                content: '50%',
+                position: 'start',
+                color: '#fff',
+                backgroundColor: 'rgba(0,0,0,0.7)',
+                font: { size: 11 }
+              }
+            }
+          }
+        }
+      },
+      animation: {
+        duration: 0 // Disable default animation
+      }
+    },
+    plugins: [{
+      id: 'verticalTextPlugin',
+      afterDatasetsDraw(chart) {
+        const { ctx, data: chartData } = chart;
+        ctx.save();
+        ctx.font = '600 14px Inter, system-ui';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#fff';
+
+        chart.getDatasetMeta(0).data.forEach((bar, i) => {
+          const val = chartData.datasets[0].data[i];
+          const label = chartData.labels[i];
+          const text = `${label} ${val.toFixed(1)}%`;
+          const barHeight = chart.chartArea.bottom - bar.y;
+          
+          // Always draw text, allow overflow for short bars
+          ctx.save();
+          ctx.translate(bar.x, chart.chartArea.bottom - 8);
+          ctx.rotate(-Math.PI / 2);
+          ctx.fillText(text, 0, 0);
+          ctx.restore();
+        });
+        ctx.restore();
+      }
+    }]
+  });
+
+  // Animate bars on scroll into view
+  const observer = new IntersectionObserver(entries => {
+    if (!entries[0].isIntersecting) return;
+    ctx._chartInstance.data.datasets[0].data = data.map(d => d.value);
+    ctx._chartInstance.options.animation = {
+      duration: 900,
+      easing: 'easeOutCubic'
+    };
+    ctx._chartInstance.update();
+    observer.disconnect();
+  }, { threshold: 0.25 });
+
+  observer.observe(ctx);
+}
+
+
+
+
+
+
+
 function drawPlacementLineChart(filteredMatches) {
   const ctx = document.getElementById('placementLineChart');
   if (!ctx) return;
@@ -811,6 +954,8 @@ function drawCharts(){
 
   // Matches per composition donut using filteredMatches
   drawDonutChart(filteredMatches);
+
+drawWinrateBarChart(filteredMatches);
 
   // Tier chart using filteredMatches
   let tierList=TIER3.filter(x=>'—'!==x);
@@ -922,6 +1067,9 @@ function getFilteredMatches(allMatches) {
 
 
 </script>
- <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+
+
 </body>
 </html>
