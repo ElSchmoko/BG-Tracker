@@ -715,8 +715,21 @@ function drawDonutChart(filteredMatches) {
       }
     }
   });
-}
 
+// Animate on scroll into view
+  const observer = new IntersectionObserver(entries => {
+    if (!entries[0].isIntersecting) return;
+    donutChartInstance.data.datasets[0].data = data.map(d => d.value);
+    donutChartInstance.options.animation = {
+      duration: 1000,
+      easing: 'easeOutCubic'
+    };
+    donutChartInstance.update();
+    observer.disconnect();
+  }, { threshold: 0.25 });
+
+  observer.observe(ctx);
+}
 
 
 
@@ -740,20 +753,16 @@ function drawWinrateBarChart(filteredMatches) {
     type: 'bar',
     data: {
       labels: data.map(d => d.name),
-     datasets: [{
-  data: data.map(d => 0), // Start at 0 for animation
-  backgroundColor: data.map(d =>
-    d.value >= 50
-      ? COMP_COLORS[d.name]
-      : COMP_COLORS[d.name] + '66' // muted below 50%
-  ),
-  borderRadius: 0,
-  borderWidth: data.map(d => d.value >= 50 ? 1 : 0),
-  borderColor: data.map(d => d.value >= 50 ? '#fff' : 'transparent'),
-  barPercentage: 0.9,
-  categoryPercentage: 0.95
-}]
-
+      datasets: [{
+        data: data.map(d => 0), // Start at 0 for animation
+        backgroundColor: data.map(d => COMP_COLORS[d.name]),
+        borderRadius: 0,
+        borderWidth: data.map(d => d.value >= 50 ? 1 : 0),
+        borderColor: data.map(d => d.value >= 50 ? '#fff' : 'transparent'),
+backgroundColor: data.map(d => d.value < 50 ? '#202020' : 'transparent'),
+        barPercentage: 0.9,
+        categoryPercentage: 0.95
+      }]
     },
     options: {
       responsive: true,
@@ -923,10 +932,10 @@ function drawPlacementLineChart(filteredMatches) {
   });
 
 
-  // Animate bars growing from bottom
+// Animate bars growing from bottom
   const observer = new IntersectionObserver(entries => {
     if (!entries[0].isIntersecting) return;
-    lineChartInstance.data.datasets[1].data = topBar;
+    lineChartInstance.data.datasets[0].data = heights;
     lineChartInstance.options.animation = {
       duration: 800,
       easing: 'easeOutQuart'
