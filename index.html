@@ -742,7 +742,11 @@ function drawWinrateBarChart(filteredMatches) {
       labels: data.map(d => d.name),
       datasets: [{
         data: data.map(d => 0), // Start at 0 for animation
-        backgroundColor: data.map(d => COMP_COLORS[d.name]),
+        backgroundColor: data.map(d =>
+  d.value >= 50
+    ? COMP_COLORS[d.name]
+    : COMP_COLORS[d.name] + '66' // add alpha for muted look (≈40% opacity)
+),
         borderRadius: 0,
         borderWidth: data.map(d => d.value >= 50 ? 1 : 0),
         borderColor: data.map(d => d.value >= 50 ? '#fff' : 'transparent'),
