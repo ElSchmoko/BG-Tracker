@@ -759,7 +759,6 @@ function drawWinrateBarChart(filteredMatches) {
         borderRadius: 0,
         borderWidth: data.map(d => d.value >= 50 ? 1 : 0),
         borderColor: data.map(d => d.value >= 50 ? '#fff' : 'transparent'),
-backgroundColor: data.map(d => d.value < 50 ? '#202020' : 'transparent'),
         barPercentage: 0.9,
         categoryPercentage: 0.95
       }]
